@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Transcript Player</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .video-panel {
+            flex: 1;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .video-wrapper {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .video-controls {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .play-btn {
+            background: #fff;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: transform 0.2s;
+        }
+
+        .play-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #fff;
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.1s;
+        }
+
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #fff;
+        }
+
+        .volume-slider {
+            width: 100px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+            cursor: pointer;
+        }
+
+        .transcript-panel {
+            flex: 1;
+            background: #fff;
+            border-radius: 8px;
+            padding: 30px;
+            overflow-y: auto;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .upload-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px dashed #dee2e6;
+        }
+
+        .upload-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        .upload-btn:hover {
+            background: #0056b3;
+        }
+
+        .upload-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        #videoInput {
+            display: none;
+        }
+
+        .transcript-content {
+            line-height: 2;
+            font-size: 18px;
+            color: #333;
+        }
+
+        .subtitle-line {
+            padding: 8px 12px;
+            margin: 4px 0;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .subtitle-line:hover {
+            background: #f0f0f0;
+        }
+
+        .subtitle-line.active {
+            background: #fff3cd;
+            color: #856404;
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transform: scale(1.02);
+        }
+
+        .word {
+            display: inline-block;
+            margin: 0 2px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            transition: all 0.2s ease;
+        }
+
+        .word.active {
+            background: #ffc107;
+            color: #000;
+            font-weight: 600;
+            animation: wordPulse 0.3s ease;
+        }
+
+        @keyframes wordPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .subtitle-line.highlight {
+            background: #ffc107;
+            color: #000;
+            animation: pulse 0.5s ease;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .error {
+            color: #dc3545;
+            padding: 15px;
+            background: #f8d7da;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .time-display {
+            color: #fff;
+            font-size: 14px;
+            min-width: 80px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .upload-btn.loading {
+            position: relative;
+            pointer-events: none;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .loading-spinner-large {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #007bff;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            color: white;
+            margin-top: 20px;
+            font-size: 18px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="video-panel">
+            <div class="video-wrapper">
+                <video id="videoPlayer" controls></video>
+            </div>
+            <div class="video-controls">
+                <button class="play-btn" id="playBtn">▶</button>
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="time-display">
+                    <span id="currentTime">0:00</span> / <span id="duration">0:00</span>
+                </div>
+                <div class="volume-control">
+                    <span>🔊</span>
+                    <div class="volume-slider" id="volumeSlider">
+                        <div style="width: 100%; height: 100%; background: #fff; border-radius: 2px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="transcript-panel">
+            <div class="upload-section">
+                <h2 style="margin-bottom: 15px;">Upload Video</h2>
+                <div style="margin-bottom: 15px;">
+                    <input type="file" id="videoInput" accept="video/*">
+                    <button class="upload-btn" onclick="document.getElementById('videoInput').click()">
+                        Chọn Video
+                    </button>
+                    <small style="display: block; margin-top: 10px; color: #6c757d;">
+                        Tool sẽ tự động extract transcript từ video (nếu video có embedded subtitles)
+                    </small>
+                </div>
+                
+                <div style="margin-top: 15px; padding: 15px; background: #f1f3f5; border-radius: 6px;">
+                    <h3 style="margin-bottom: 10px; font-size: 16px;">Chọn loại Transcript</h3>
+                    <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;">
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <input type="radio" name="transcriptProvider" value="auto" checked>
+                            <span>Tự động (Embedded → Whisper)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <input type="radio" name="transcriptProvider" value="whisper">
+                            <span>Whisper (OpenAI)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <input type="radio" name="transcriptProvider" value="elevenlabs">
+                            <span>ElevenLabs (fallback Whisper nếu lỗi)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div style="margin-top: 15px; padding: 15px; background: #e9ecef; border-radius: 6px;">
+                    <h3 style="margin-bottom: 10px; font-size: 16px;">Options - ElevenLabs TTS</h3>
+                    <div style="margin-bottom: 10px;">
+                        <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="enableTTS" style="margin-right: 8px;">
+                            <span>Generate Audio với ElevenLabs sau khi có transcript</span>
+                        </label>
+                    </div>
+                    <div id="voiceSelectContainer" style="display: none;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Chọn Voice:</label>
+                        <select id="voiceSelect" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd;">
+                            <option value="">Đang tải...</option>
+                        </select>
+                    </div>
+                    <div id="ttsResult" style="margin-top: 10px;"></div>
+                </div>
+                
+                <div id="errorMessage"></div>
+            </div>
+
+            <div id="transcriptContent" class="transcript-content">
+                <div class="loading">Vui lòng upload video để xem transcript</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const videoInput = document.getElementById('videoInput');
+        const videoPlayer = document.getElementById('videoPlayer');
+        const playBtn = document.getElementById('playBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const transcriptContent = document.getElementById('transcriptContent');
+        const errorMessage = document.getElementById('errorMessage');
+        const currentTimeDisplay = document.getElementById('currentTime');
+        const durationDisplay = document.getElementById('duration');
+
+        let subtitles = [];
+        let currentSubtitleIndex = -1;
+        let transcriptProvider = 'auto';
+
+        // Load voices khi trang load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadElevenLabsVoices();
+            
+            // Toggle voice select khi checkbox thay đổi
+            document.getElementById('enableTTS').addEventListener('change', (e) => {
+                document.getElementById('voiceSelectContainer').style.display = e.target.checked ? 'block' : 'none';
+            });
+
+            document.querySelectorAll('input[name="transcriptProvider"]').forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    transcriptProvider = e.target.value;
+                });
+            });
+        });
+
+        videoInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Hiển thị loading overlay
+            const loadingOverlay = document.createElement('div');
+            loadingOverlay.className = 'loading-overlay';
+            loadingOverlay.innerHTML = `
+                <div style="text-align: center;">
+                    <div class="loading-spinner-large"></div>
+                    <div class="loading-text">Đang xử lý video và tạo transcript...</div>
+                </div>
+            `;
+            document.body.appendChild(loadingOverlay);
+
+            errorMessage.innerHTML = '';
+            transcriptContent.innerHTML = '<div class="loading">Đang xử lý video và extract transcript...</div>';
+
+            const formData = new FormData();
+            formData.append('video', file);
+            formData.append('transcriptProvider', transcriptProvider);
+
+            try {
+                const response = await fetch('/api/transcript', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                // Ẩn loading overlay
+                document.body.removeChild(loadingOverlay);
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Upload failed');
+                }
+
+                // Set video source
+                videoPlayer.src = data.videoUrl;
+                subtitles = data.subtitles || [];
+
+                if (data.message) {
+                    errorMessage.innerHTML = `<div style="color: #856404; background: #fff3cd; padding: 10px; border-radius: 4px; margin-bottom: 10px;">${data.message}</div>`;
+                }
+
+                // Render transcript
+                renderTranscript(subtitles);
+
+                // Setup video event listeners
+                setupVideoListeners();
+
+                // Tự động generate audio nếu đã chọn option
+                const enableTTS = document.getElementById('enableTTS').checked;
+                const voiceId = document.getElementById('voiceSelect').value;
+                
+                if (enableTTS && voiceId && subtitles.length > 0) {
+                    generateTTSFromTranscript(voiceId, subtitles);
+                }
+
+            } catch (error) {
+                // Ẩn loading overlay nếu có lỗi
+                const existingOverlay = document.querySelector('.loading-overlay');
+                if (existingOverlay) {
+                    document.body.removeChild(existingOverlay);
+                }
+                errorMessage.innerHTML = `<div class="error">Lỗi: ${error.message}</div>`;
+                transcriptContent.innerHTML = '<div class="loading">Vui lòng thử lại</div>';
+            }
+        });
+
+        function renderTranscript(subtitles) {
+            if (subtitles.length === 0) {
+                transcriptContent.innerHTML = '<div class="loading">Không tìm thấy subtitle trong video. Nếu video không có embedded subtitles, tool sẽ tự động dùng Whisper để tạo transcript.</div>';
+                return;
+            }
+
+            transcriptContent.innerHTML = subtitles.map((sub, index) => {
+                // Nếu có word-level timestamps, render từng từ
+                if (sub.words && sub.words.length > 0) {
+                    const wordsHtml = sub.words.map((word, wordIndex) => 
+                        `<span class="word" data-start="${word.startTime}" data-end="${word.endTime}" data-subtitle="${index}" data-word="${wordIndex}">${word.word}</span>`
+                    ).join('');
+                    return `<div class="subtitle-line" data-index="${index}" data-start="${sub.startTime}" data-end="${sub.endTime}">${wordsHtml}</div>`;
+                } else {
+                    // Fallback: render cả câu nếu không có word-level timestamps
+                    return `<div class="subtitle-line" data-index="${index}" data-start="${sub.startTime}" data-end="${sub.endTime}">${sub.text}</div>`;
+                }
+            }).join('');
+
+            // Add click handlers to subtitle lines
+            document.querySelectorAll('.subtitle-line').forEach(line => {
+                line.addEventListener('click', () => {
+                    const startTime = parseFloat(line.dataset.start);
+                    videoPlayer.currentTime = startTime;
+                });
+            });
+
+            // Add click handlers to words
+            document.querySelectorAll('.word').forEach(word => {
+                word.addEventListener('click', () => {
+                    const startTime = parseFloat(word.dataset.start);
+                    videoPlayer.currentTime = startTime;
+                });
+            });
+        }
+
+        function setupVideoListeners() {
+            // Play/Pause button
+            playBtn.addEventListener('click', () => {
+                if (videoPlayer.paused) {
+                    videoPlayer.play();
+                    playBtn.textContent = '⏸';
+                } else {
+                    videoPlayer.pause();
+                    playBtn.textContent = '▶';
+                }
+            });
+
+            videoPlayer.addEventListener('play', () => {
+                playBtn.textContent = '⏸';
+            });
+
+            videoPlayer.addEventListener('pause', () => {
+                playBtn.textContent = '▶';
+            });
+
+            // Progress bar
+            videoPlayer.addEventListener('timeupdate', () => {
+                const progress = (videoPlayer.currentTime / videoPlayer.duration) * 100;
+                progressFill.style.width = progress + '%';
+                
+                // Update time display
+                currentTimeDisplay.textContent = formatTime(videoPlayer.currentTime);
+                
+                // Update active subtitle
+                updateActiveSubtitle(videoPlayer.currentTime);
+            });
+
+            videoPlayer.addEventListener('loadedmetadata', () => {
+                durationDisplay.textContent = formatTime(videoPlayer.duration);
+            });
+
+            // Click on progress bar to seek
+            progressBar.addEventListener('click', (e) => {
+                const rect = progressBar.getBoundingClientRect();
+                const pos = (e.clientX - rect.left) / rect.width;
+                videoPlayer.currentTime = pos * videoPlayer.duration;
+            });
+
+            // Volume control
+            volumeSlider.addEventListener('click', (e) => {
+                const rect = volumeSlider.getBoundingClientRect();
+                const volume = (e.clientX - rect.left) / rect.width;
+                videoPlayer.volume = Math.max(0, Math.min(1, volume));
+            });
+        }
+
+        let currentWordElement = null;
+
+        function updateActiveSubtitle(currentTime) {
+            // Tìm từ đang được nói (word-level)
+            let activeWord = null;
+            let activeSubtitleIndex = -1;
+
+            // Tìm từ đang active
+            for (let i = 0; i < subtitles.length; i++) {
+                const sub = subtitles[i];
+                if (sub.words && sub.words.length > 0) {
+                    for (let j = 0; j < sub.words.length; j++) {
+                        const word = sub.words[j];
+                        const wordStart = parseFloat(word.startTime);
+                        const wordEnd = parseFloat(word.endTime);
+                        
+                        if (currentTime >= wordStart && currentTime <= wordEnd) {
+                            activeWord = { subtitleIndex: i, wordIndex: j };
+                            activeSubtitleIndex = i;
+                            break;
+                        }
+                    }
+                    if (activeWord) break;
+                } else {
+                    // Fallback: nếu không có word-level, dùng sentence-level
+                    const start = parseFloat(sub.startTime);
+                    const end = parseFloat(sub.endTime);
+                    if (currentTime >= start && currentTime <= end) {
+                        activeSubtitleIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            // Update active word
+            if (activeWord) {
+                const wordElement = document.querySelector(`[data-subtitle="${activeWord.subtitleIndex}"][data-word="${activeWord.wordIndex}"]`);
+                
+                if (wordElement !== currentWordElement) {
+                    // Remove previous active word
+                    if (currentWordElement) {
+                        currentWordElement.classList.remove('active');
+                    }
+                    
+                    // Add active to new word
+                    if (wordElement) {
+                        wordElement.classList.add('active');
+                        currentWordElement = wordElement;
+                        
+                        // Scroll word into view
+                        wordElement.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center',
+                            inline: 'center'
+                        });
+                    }
+                }
+            } else {
+                // Remove active word if no word is active
+                if (currentWordElement) {
+                    currentWordElement.classList.remove('active');
+                    currentWordElement = null;
+                }
+            }
+
+            // Update active subtitle line (highlight cả câu)
+            if (activeSubtitleIndex !== currentSubtitleIndex) {
+                // Remove previous active subtitle line
+                if (currentSubtitleIndex >= 0) {
+                    const prevLine = document.querySelector(`.subtitle-line[data-index="${currentSubtitleIndex}"]`);
+                    if (prevLine) {
+                        prevLine.classList.remove('active', 'highlight');
+                    }
+                }
+
+                // Add new active subtitle line
+                if (activeSubtitleIndex >= 0) {
+                    const currentLine = document.querySelector(`.subtitle-line[data-index="${activeSubtitleIndex}"]`);
+                    if (currentLine) {
+                        currentLine.classList.add('active');
+                    }
+                }
+
+                currentSubtitleIndex = activeSubtitleIndex;
+            }
+        }
+
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return '0:00';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // ElevenLabs functions
+        async function loadElevenLabsVoices() {
+            const voiceSelect = document.getElementById('voiceSelect');
+            try {
+                const response = await fetch('/api/elevenlabs/voices');
+                const data = await response.json();
+                
+                if (response.ok && data.voices) {
+                    voiceSelect.innerHTML = '<option value="">Chọn voice...</option>';
+                    data.voices.forEach(voice => {
+                        const option = document.createElement('option');
+                        option.value = voice.voice_id;
+                        option.textContent = `${voice.name}${voice.category ? ' (' + voice.category + ')' : ''}`;
+                        voiceSelect.appendChild(option);
+                    });
+                } else {
+                    voiceSelect.innerHTML = '<option value="">Không thể tải voices</option>';
+                }
+            } catch (error) {
+                console.error('Error loading voices:', error);
+                voiceSelect.innerHTML = '<option value="">Lỗi khi tải voices</option>';
+            }
+        }
+
+        async function generateTTSFromTranscript(voiceId, transcriptSubtitles) {
+            const ttsResult = document.getElementById('ttsResult');
+
+            if (!voiceId) {
+                ttsResult.innerHTML = '<div class="error">Vui lòng chọn voice</div>';
+                return;
+            }
+
+            if (!transcriptSubtitles || transcriptSubtitles.length === 0) {
+                ttsResult.innerHTML = '<div class="error">Không có transcript để generate</div>';
+                return;
+            }
+
+            // Lấy toàn bộ text từ transcript
+            const fullText = transcriptSubtitles.map(sub => sub.text).join(' ');
+
+            ttsResult.innerHTML = '<div class="loading">Đang tạo audio với ElevenLabs...</div>';
+
+            try {
+                const response = await fetch('/api/elevenlabs/tts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        text: fullText,
+                        voice_id: voiceId
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    ttsResult.innerHTML = `
+                        <div style="padding: 10px; background: #d4edda; border-radius: 4px; color: #155724;">
+                            <p><strong>✅ Audio đã được tạo thành công với ElevenLabs!</strong></p>
+                            <audio controls style="width: 100%; margin-top: 10px;">
+                                <source src="${data.audioUrl}" type="audio/mpeg">
+                            </audio>
+                            <a href="${data.audioUrl}" download style="display: inline-block; margin-top: 10px; color: #007bff; text-decoration: none;">📥 Download Audio</a>
+                        </div>
+                    `;
+                } else {
+                    ttsResult.innerHTML = `<div class="error">Lỗi: ${data.error || 'Unknown error'}</div>`;
+                }
+            } catch (error) {
+                ttsResult.innerHTML = `<div class="error">Lỗi: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
+
