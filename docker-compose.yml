@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  video-transcript:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: video-transcript
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./.env:/app/.env:ro
+    env_file:
+      - .env
+    environment:
+      - GIN_MODE=release
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: video-transcript-db
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+volumes:
+  db_data:
+
