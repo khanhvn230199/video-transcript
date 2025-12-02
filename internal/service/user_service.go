@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 
 	"golang.org/x/crypto/bcrypt"
@@ -18,6 +19,8 @@ type UserService interface {
 	List(ctx context.Context) ([]*model.User, error)
 	Update(ctx context.Context, u *model.User) error
 	Delete(ctx context.Context, id int64) error
+
+	GetByEmail(ctx context.Context, email string) (*model.User, error)
 }
 
 type userService struct {
@@ -53,6 +56,9 @@ func (s *userService) Create(ctx context.Context, u *model.User) error {
 func (s *userService) Authenticate(ctx context.Context, email, password string) (*model.User, error) {
 	u, err := s.repo.GetByEmail(ctx, email)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("email not found")
+		}
 		return nil, err
 	}
 
@@ -77,4 +83,8 @@ func (s *userService) Update(ctx context.Context, u *model.User) error {
 
 func (s *userService) Delete(ctx context.Context, id int64) error {
 	return s.repo.Delete(ctx, id)
+}
+
+func (s *userService) GetByEmail(ctx context.Context, email string) (*model.User, error) {
+	return s.repo.GetByEmail(ctx, email)
 }

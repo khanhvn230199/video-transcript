@@ -26,6 +26,9 @@ type svcConfig struct {
 	// JWT config
 	JWTSecret       string `env:"JWT_SECRET" envDefault:"changeme-secret"`
 	JWTExpireMinute int    `env:"JWT_EXPIRE_MINUTES" envDefault:"60"`
+
+	// Deepgram
+	DeepgramAPIKey string `env:"DEEPGRAM_API_KEY" envDefault:""`
 }
 
 func init() {

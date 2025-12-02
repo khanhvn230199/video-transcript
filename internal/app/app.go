@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"video-transcript/internal/handler"
+	"video-transcript/internal/middleware"
 	"video-transcript/internal/repository"
 	"video-transcript/internal/service"
 )
@@ -19,14 +20,30 @@ type App struct {
 // NewApp khởi tạo repository, service, handler và router.
 func NewApp(db *sql.DB) *App {
 	userRepo := repository.NewUserRepository(db)
+	videoRepo := repository.NewVideoRepository(db)
 	userSvc := service.NewUserService(userRepo)
+	videoSvc := service.NewVideoService(videoRepo)
 	userHandler := handler.NewUserHandler(userSvc)
 	authHandler := handler.NewAuthHandler(userSvc)
+	uploadHandler := handler.NewUploadHandler(videoSvc)
 
 	r := gin.Default()
 
+	// Global middleware
+	r.Use(middleware.CORSMiddleware())
+
+	// Health check
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"status": "ok",
+		})
+	})
+
 	// Auth routes (public)
 	authHandler.RegisterRoutes(r)
+
+	// Upload routes (public)
+	uploadHandler.RegisterRoutes(r)
 
 	userHandler.RegisterRoutes(r)
 

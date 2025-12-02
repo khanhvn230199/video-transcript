@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"database/sql"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -47,6 +48,17 @@ func (h *AuthHandler) register(c *gin.Context) {
 		AvatarURL:    in.AvatarURL,
 		Role:         "user",
 		Credit:       0,
+	}
+
+	// check email đã tồn tại chưa
+	user, err := h.svc.GetByEmail(c.Request.Context(), in.Email)
+	if err != nil && err != sql.ErrNoRows {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if user != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "email already exists"})
+		return
 	}
 
 	if err := h.svc.Create(c.Request.Context(), u); err != nil {
