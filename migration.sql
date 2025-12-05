@@ -1,5 +1,5 @@
 -- tạo bảng users
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id BIGSERIAL PRIMARY KEY,
 
     email VARCHAR(255) NOT NULL UNIQUE,
@@ -17,7 +17,7 @@ CREATE TABLE users (
 );
 
 -- tạo bảng videos
-CREATE TABLE videos (
+CREATE TABLE IF NOT EXISTS videos (
     id BIGSERIAL PRIMARY KEY,
 
     user_id BIGINT NOT NULL,          -- ID người dùng
@@ -28,3 +28,26 @@ CREATE TABLE videos (
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE tasks (
+    id              BIGSERIAL PRIMARY KEY,
+
+    task_type       VARCHAR(10),
+    status_task          VARCHAR(10) NOT NULL DEFAULT 'pending',
+
+    input_text      TEXT,
+    input_url       TEXT,
+    output_url      TEXT,
+
+    transcript_text TEXT,
+    transcript_json JSONB,
+
+    duration_sec    FLOAT,
+    error_message   TEXT,
+    user_id         BIGINT,
+
+    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+

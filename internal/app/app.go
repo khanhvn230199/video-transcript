@@ -19,13 +19,22 @@ type App struct {
 
 // NewApp khởi tạo repository, service, handler và router.
 func NewApp(db *sql.DB) *App {
+	// init repositories
 	userRepo := repository.NewUserRepository(db)
 	videoRepo := repository.NewVideoRepository(db)
+	taskRepo := repository.NewTaskRepository(db)
+
+	// init services
 	userSvc := service.NewUserService(userRepo)
 	videoSvc := service.NewVideoService(videoRepo)
+	taskSvc := service.NewTaskService(taskRepo)
+
+	// init handlers
 	userHandler := handler.NewUserHandler(userSvc)
 	authHandler := handler.NewAuthHandler(userSvc)
 	uploadHandler := handler.NewUploadHandler(videoSvc)
+	deepgramHandler := handler.NewDeepgramHandler(videoSvc, taskSvc)
+	taskHandler := handler.NewTaskHandler(taskSvc)
 
 	r := gin.Default()
 
@@ -46,6 +55,9 @@ func NewApp(db *sql.DB) *App {
 	uploadHandler.RegisterRoutes(r)
 
 	userHandler.RegisterRoutes(r)
+
+	deepgramHandler.RegisterRoutes(r)
+	taskHandler.RegisterRoutes(r)
 
 	return &App{
 		Engine:      r,
