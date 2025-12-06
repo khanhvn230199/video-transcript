@@ -23,10 +23,10 @@ func NewDeepgramHandler(videoSvc service.VideoService, taskSvc service.TaskServi
 	return &DeepgramHandler{videoSvc: videoSvc, taskSvc: taskSvc}
 }
 
-func (h *DeepgramHandler) RegisterRoutes(r *gin.Engine) {
-	deepgramGroup := r.Group("/deepgram")
-	deepgramGroup.POST("/tts", middleware.JWTAuth(), h.DeepgramTTS)
-	deepgramGroup.POST("/stt", middleware.JWTAuth(), h.DeepgramSTT)
+func (h *DeepgramHandler) RegisterRoutes(r *gin.RouterGroup, authMiddleware gin.HandlerFunc) {
+	deepgramGroup := r.Group("/deepgram", authMiddleware)
+	deepgramGroup.POST("/tts", h.DeepgramTTS)
+	deepgramGroup.POST("/stt", h.DeepgramSTT)
 }
 
 func (h *DeepgramHandler) DeepgramTTS(c *gin.Context) {

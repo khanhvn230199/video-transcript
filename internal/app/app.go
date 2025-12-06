@@ -58,8 +58,8 @@ func NewApp(db *sql.DB) *App {
 
 	userHandler.RegisterRoutes(router, middleware.JWTAuth())
 
-	deepgramHandler.RegisterRoutes(r)
-	taskHandler.RegisterRoutes(r)
+	deepgramHandler.RegisterRoutes(router, middleware.JWTAuth())
+	taskHandler.RegisterRoutes(router, middleware.JWTAuth())
 
 	return &App{
 		Engine:      r,

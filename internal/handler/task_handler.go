@@ -22,11 +22,13 @@ func NewTaskHandler(svc service.TaskService) *TaskHandler {
 }
 
 // RegisterRoutes registers task routes under /tasks (JWT required).
-func (h *TaskHandler) RegisterRoutes(r *gin.Engine) {
-	g := r.Group("/tasks", middleware.JWTAuth())
+func (h *TaskHandler) RegisterRoutes(r *gin.RouterGroup, authMiddleware gin.HandlerFunc) {
+	g := r.Group("/tasks", authMiddleware)
 	g.POST("", h.create)
 	g.GET("", h.listByUser)
 	g.GET("/:id", h.getByID)
+	g.GET("/user/:id", h.listTaskByUserID)
+	g.PUT("/:id/cancel", h.cancelTask)
 }
 
 type createTaskRequest struct {
@@ -99,10 +101,6 @@ func (h *TaskHandler) getByID(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
-	if task.UserID != nil && *task.UserID != currentUser.ID {
-		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
-		return
-	}
 
 	c.JSON(http.StatusOK, gin.H{"task": task})
 }
@@ -134,4 +132,81 @@ func (h *TaskHandler) listByUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"tasks": tasks})
+}
+
+func (h *TaskHandler) listTaskByUserID(c *gin.Context) {
+	currentUser := middleware.CurrentUser(c)
+	if currentUser == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	if currentUser.Role != "admin" {
+		id = currentUser.ID
+	}
+
+	status := c.Query("status")
+	if status != "" {
+		status = string(status)
+	}
+
+	limit := 20
+	offset := 0
+	if v := c.Query("limit"); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 && parsed <= 100 {
+			limit = parsed
+		}
+	}
+	if v := c.Query("offset"); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+
+	search := c.Query("search")
+
+	tasks, err := h.svc.ListTaskByUserID(c.Request.Context(), id, limit, offset, search, status)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"tasks": tasks})
+}
+
+func (h *TaskHandler) cancelTask(c *gin.Context) {
+	currentUser := middleware.CurrentUser(c)
+	if currentUser == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var in struct {
+		ErrorMessage string `json:"error_message" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	err = h.svc.UpdateStatus(c.Request.Context(), id, model.TaskStatusFailed, nil, nil, &in.ErrorMessage)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "task status updated successfully"})
 }

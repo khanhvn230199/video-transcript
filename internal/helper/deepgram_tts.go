@@ -18,9 +18,7 @@ import (
 )
 
 func DeepgramTTS(ctx context.Context, userID string, text string) (string, error) {
-	client.Init(client.InitLib{
-		LogLevel: client.LogLevelTrace, // LogLevelDefault, LogLevelFull, LogLevelDebug, LogLevelTrace
-	})
+	// Deepgram client is already initialized in main()
 	if config.SvcCfg.DeepgramAPIKey == "" {
 		err := errors.New("missing Deepgram API key")
 		zap.S().Errorw("Deepgram client init failed", "error", err)

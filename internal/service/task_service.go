@@ -12,6 +12,7 @@ type TaskService interface {
 	Create(ctx context.Context, t *model.Task) error
 	GetByID(ctx context.Context, id int64) (*model.Task, error)
 	ListByUser(ctx context.Context, userID int64, limit, offset int) ([]*model.Task, error)
+	ListTaskByUserID(ctx context.Context, userID int64, limit, offset int, search string, status string) (*model.ListTaskByUserIDResponse, error)
 	UpdateStatus(ctx context.Context, id int64, status model.TaskStatus, outputURL *string, durationSec *float64, errorMessage *string) error
 	UpdateTranscript(ctx context.Context, id int64, status model.TaskStatus, transcriptText *string, transcriptJSON []byte) error
 }
@@ -43,4 +44,8 @@ func (s *taskService) UpdateStatus(ctx context.Context, id int64, status model.T
 
 func (s *taskService) UpdateTranscript(ctx context.Context, id int64, status model.TaskStatus, transcriptText *string, transcriptJSON []byte) error {
 	return s.repo.UpdateTranscript(ctx, id, status, transcriptText, transcriptJSON)
+}
+
+func (s *taskService) ListTaskByUserID(ctx context.Context, userID int64, limit, offset int, search string, status string) (*model.ListTaskByUserIDResponse, error) {
+	return s.repo.ListTaskByUserID(ctx, userID, limit, offset, search, status)
 }

@@ -135,3 +135,11 @@ func ConvertDeepgramToSimple(resp *interfacesv1.PreRecordedResponse) (*SimpleTra
 
 	return out, nil
 }
+
+type ListTaskByUserIDResponse struct {
+	Page       int     `json:"page"`        // Trang hiện tại
+	PageSize   int     `json:"page_size"`   // Số rows mỗi trang
+	Total      int     `json:"total"`       // Tổng số records
+	TotalPages int     `json:"total_pages"` // Tổng số trang
+	Tasks      []*Task `json:"tasks"`
+}

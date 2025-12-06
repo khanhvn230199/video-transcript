@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 	"database/sql"
+	"flag"
 	"log"
 
 	_ "github.com/lib/pq"
 	"go.uber.org/zap"
+
+	speakClient "github.com/deepgram/deepgram-go-sdk/v3/pkg/client/speak"
 
 	"video-transcript/internal/app"
 	"video-transcript/internal/config"
@@ -14,6 +17,17 @@ import (
 )
 
 func main() {
+	// Init Deepgram client first - this will register klog flags
+	// This must be done before flag.Parse() to avoid conflicts
+	speakClient.Init(speakClient.InitLib{
+		LogLevel: speakClient.LogLevelTrace,
+	})
+
+	// Disable klog logging (flags already registered by speakClient.Init)
+	flag.Set("logtostderr", "false")
+	flag.Set("alsologtostderr", "false")
+	flag.Parse()
+
 	// Setup global zap logger so zap.S() in other packages actually logs.
 	logger, err := zap.NewDevelopment()
 	if err != nil {
