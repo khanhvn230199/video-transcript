@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -25,8 +26,10 @@ func NewUploadHandler(videoSvc service.VideoService) *UploadHandler {
 }
 
 // RegisterRoutes đăng ký route upload (yêu cầu JWT).
-func (h *UploadHandler) RegisterRoutes(r gin.IRoutes) {
-	r.POST("/upload", middleware.JWTAuth(), h.uploadFile)
+func (h *UploadHandler) RegisterRoutes(r *gin.RouterGroup, authMiddleware gin.HandlerFunc) {
+	uploadGroup := r.Group("/upload", authMiddleware)
+	uploadGroup.POST("", h.uploadFile)
+	uploadGroup.PUT("/:id", h.updateDescriptionVideo)
 }
 
 // uploadFile nhận multipart/form-data với field "file" và lưu vào thư mục uploads.
@@ -86,4 +89,32 @@ func (h *UploadHandler) uploadFile(c *gin.Context) {
 		"created_at":  video.CreatedAt,
 		"updated_at":  video.UpdatedAt,
 	})
+}
+
+func (h *UploadHandler) updateDescriptionVideo(c *gin.Context) {
+	currentUser := middleware.CurrentUser(c)
+	if currentUser == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var in model.UpdateDescriptionVideoRequest
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.videoSvc.UpdateDescription(c.Request.Context(), id, in.Description); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not update video description"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "video description updated successfully"})
 }

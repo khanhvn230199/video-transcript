@@ -78,6 +78,13 @@ func (s *userService) List(ctx context.Context) ([]*model.User, error) {
 }
 
 func (s *userService) Update(ctx context.Context, u *model.User) error {
+	if u.PasswordHash != "" {
+		hashed, err := bcrypt.GenerateFromPassword([]byte(u.PasswordHash), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+		u.PasswordHash = string(hashed)
+	}
 	return s.repo.Update(ctx, u)
 }
 

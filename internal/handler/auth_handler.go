@@ -3,6 +3,7 @@ package handler
 import (
 	"database/sql"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -22,7 +23,7 @@ func NewAuthHandler(svc service.UserService) *AuthHandler {
 }
 
 // RegisterRoutes đăng ký các route auth (không cần JWT).
-func (h *AuthHandler) RegisterRoutes(r *gin.Engine) {
+func (h *AuthHandler) RegisterRoutes(r *gin.RouterGroup) {
 	authGroup := r.Group("/auth")
 	authGroup.POST("/register", h.register)
 	authGroup.POST("/login", h.login)
@@ -31,23 +32,18 @@ func (h *AuthHandler) RegisterRoutes(r *gin.Engine) {
 // register: đăng ký user mới (public).
 func (h *AuthHandler) register(c *gin.Context) {
 	var in struct {
-		Email     string  `json:"email"`
-		Password  string  `json:"password"`
-		Name      *string `json:"name"`
-		AvatarURL *string `json:"avatar_url"`
+		Email     string     `json:"email" binding:"required"`
+		Password  string     `json:"password" binding:"required"`
+		Name      *string    `json:"name"`
+		AvatarURL *string    `json:"avatar_url"`
+		Gender    *string    `json:"gender"`
+		DOB       *time.Time `json:"dob"`
+		Phone     *string    `json:"phone"`
+		Address   *string    `json:"address"`
 	}
 	if err := c.ShouldBindJSON(&in); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
-	}
-
-	u := &model.User{
-		Email:        in.Email,
-		PasswordHash: in.Password, // sẽ được hash trong service
-		Name:         in.Name,
-		AvatarURL:    in.AvatarURL,
-		Role:         "user",
-		Credit:       0,
 	}
 
 	// check email đã tồn tại chưa
@@ -61,16 +57,33 @@ func (h *AuthHandler) register(c *gin.Context) {
 		return
 	}
 
+	u := &model.User{
+		Email:        in.Email,
+		PasswordHash: in.Password, // sẽ được hash trong service
+		Name:         in.Name,
+		AvatarURL:    in.AvatarURL,
+		Gender:       in.Gender,
+		DOB:          in.DOB,
+		Phone:        in.Phone,
+		Address:      in.Address,
+		Role:         "user", // mặc định là user, không cho phép set khi register
+		Credit:       0,      // mặc định là 0, không cho phép set khi register
+	}
+
 	if err := h.svc.Create(c.Request.Context(), u); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"id":    u.ID,
-		"email": u.Email,
-		"name":  u.Name,
-		"role":  u.Role,
+		"id":      u.ID,
+		"email":   u.Email,
+		"name":    u.Name,
+		"role":    u.Role,
+		"gender":  u.Gender,
+		"dob":     u.DOB,
+		"phone":   u.Phone,
+		"address": u.Address,
 	})
 }
 

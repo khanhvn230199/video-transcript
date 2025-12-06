@@ -52,6 +52,10 @@ func JWTAuth() gin.HandlerFunc {
 			Email: claims.Email,
 			Role:  claims.Role,
 		}
+		if claims.UserID == 0 {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
 		c.Set("currentUser", currentUser)
 
 		c.Next()

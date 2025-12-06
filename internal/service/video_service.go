@@ -10,8 +10,10 @@ import (
 // VideoService defines business logic for videos.
 type VideoService interface {
 	Create(ctx context.Context, v *model.Video) error
+	UpdateDescription(ctx context.Context, id int64, description *string) error
 	GetByID(ctx context.Context, id int64) (*model.Video, error)
 	GetVideoByUserIDAndURL(ctx context.Context, userID int64, url string) ([]*model.Video, error)
+	ListVideoByUserID(ctx context.Context, userID int64, limit, offset int, search string) (*model.ListVideoByUserIDResponse, error)
 }
 
 type videoService struct {
@@ -33,4 +35,12 @@ func (s *videoService) GetByID(ctx context.Context, id int64) (*model.Video, err
 
 func (s *videoService) GetVideoByUserIDAndURL(ctx context.Context, userID int64, url string) ([]*model.Video, error) {
 	return s.repo.GetVideoByUserIDAndURL(ctx, userID, url)
+}
+
+func (s *videoService) ListVideoByUserID(ctx context.Context, userID int64, limit, offset int, search string) (*model.ListVideoByUserIDResponse, error) {
+	return s.repo.ListVideoByUserID(ctx, userID, limit, offset, search)
+}
+
+func (s *videoService) UpdateDescription(ctx context.Context, id int64, description *string) error {
+	return s.repo.UpdateDescription(ctx, id, description)
 }

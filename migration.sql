@@ -8,6 +8,11 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(255),
     avatar_url TEXT,
 
+    gender VARCHAR(10),
+    dob DATE,
+    phone VARCHAR(20),
+    address TEXT,
+
     role VARCHAR(20) NOT NULL DEFAULT 'user',
 
     credit INT NOT NULL DEFAULT 0,
@@ -49,5 +54,29 @@ CREATE TABLE tasks (
     created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+-- ============================================
+-- MIGRATION: Thêm các trường mới vào bảng users
+-- Chạy các lệnh ALTER TABLE bên dưới nếu database đã có dữ liệu
+-- ============================================
+
+-- Thêm cột gender (giới tính) - chỉ chạy nếu cột chưa tồn tại
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(10);
+
+-- Thêm cột dob (ngày sinh) - chỉ chạy nếu cột chưa tồn tại
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS dob DATE;
+
+-- Thêm cột phone (số điện thoại) - chỉ chạy nếu cột chưa tồn tại
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
+
+-- Thêm cột address (địa chỉ) - chỉ chạy nếu cột chưa tồn tại
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS address TEXT;
+
+-- Hoặc chạy tất cả cùng lúc (PostgreSQL 9.5+):
+-- ALTER TABLE users 
+--     ADD COLUMN IF NOT EXISTS gender VARCHAR(10),
+--     ADD COLUMN IF NOT EXISTS dob DATE,
+--     ADD COLUMN IF NOT EXISTS phone VARCHAR(20),
+--     ADD COLUMN IF NOT EXISTS address TEXT;
 
 

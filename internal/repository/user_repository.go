@@ -28,8 +28,8 @@ func NewUserRepository(db *sql.DB) UserRepository {
 
 func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 	query := `
-		INSERT INTO users (email, password_hash, name, avatar_url, role, credit)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO users (email, password_hash, name, avatar_url, gender, dob, phone, address, role, credit)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING id, created_at, updated_at
 	`
 	return r.db.
@@ -40,6 +40,10 @@ func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 			u.PasswordHash,
 			u.Name,
 			u.AvatarURL,
+			u.Gender,
+			u.DOB,
+			u.Phone,
+			u.Address,
 			u.Role,
 			u.Credit,
 		).
@@ -48,7 +52,7 @@ func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 
 func (r *userRepository) GetByID(ctx context.Context, id int64) (*model.User, error) {
 	query := `
-		SELECT id, email, password_hash, name, avatar_url, role, credit, created_at, updated_at
+		SELECT id, email, name, avatar_url, gender, dob, phone, address, role, credit, created_at, updated_at
 		FROM users
 		WHERE id = $1
 	`
@@ -58,9 +62,12 @@ func (r *userRepository) GetByID(ctx context.Context, id int64) (*model.User, er
 		Scan(
 			&u.ID,
 			&u.Email,
-			&u.PasswordHash,
 			&u.Name,
 			&u.AvatarURL,
+			&u.Gender,
+			&u.DOB,
+			&u.Phone,
+			&u.Address,
 			&u.Role,
 			&u.Credit,
 			&u.CreatedAt,
@@ -74,7 +81,7 @@ func (r *userRepository) GetByID(ctx context.Context, id int64) (*model.User, er
 
 func (r *userRepository) GetByEmail(ctx context.Context, email string) (*model.User, error) {
 	query := `
-		SELECT id, email, password_hash, name, avatar_url, role, credit, created_at, updated_at
+		SELECT id, email, password_hash, name, avatar_url, gender, dob, phone, address, role, credit, created_at, updated_at
 		FROM users
 		WHERE email = $1
 	`
@@ -87,6 +94,10 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*model.U
 			&u.PasswordHash,
 			&u.Name,
 			&u.AvatarURL,
+			&u.Gender,
+			&u.DOB,
+			&u.Phone,
+			&u.Address,
 			&u.Role,
 			&u.Credit,
 			&u.CreatedAt,
@@ -100,7 +111,7 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*model.U
 
 func (r *userRepository) List(ctx context.Context) ([]*model.User, error) {
 	query := `
-		SELECT id, email, password_hash, name, avatar_url, role, credit, created_at, updated_at
+		SELECT id, email, password_hash, name, avatar_url, gender, dob, phone, address, role, credit, created_at, updated_at
 		FROM users
 		ORDER BY id
 	`
@@ -119,6 +130,10 @@ func (r *userRepository) List(ctx context.Context) ([]*model.User, error) {
 			&u.PasswordHash,
 			&u.Name,
 			&u.AvatarURL,
+			&u.Gender,
+			&u.DOB,
+			&u.Phone,
+			&u.Address,
 			&u.Role,
 			&u.Credit,
 			&u.CreatedAt,
@@ -132,16 +147,54 @@ func (r *userRepository) List(ctx context.Context) ([]*model.User, error) {
 }
 
 func (r *userRepository) Update(ctx context.Context, u *model.User) error {
+	// Nếu password_hash rỗng, không update password (giữ nguyên password cũ)
+	if u.PasswordHash == "" {
+		query := `
+			UPDATE users
+			SET email = $1,
+			    name = $2,
+			    avatar_url = $3,
+			    gender = $4,
+			    dob = $5,
+			    phone = $6,
+			    address = $7,
+			    role = $8,
+			    credit = $9,
+			    updated_at = NOW()
+			WHERE id = $10
+		`
+		_, err := r.db.ExecContext(
+			ctx,
+			query,
+			u.Email,
+			u.Name,
+			u.AvatarURL,
+			u.Gender,
+			u.DOB,
+			u.Phone,
+			u.Address,
+			u.Role,
+			u.Credit,
+			u.ID,
+		)
+		return err
+	}
+
+	// Nếu có password mới, update cả password
 	query := `
 		UPDATE users
 		SET email = $1,
 		    password_hash = $2,
 		    name = $3,
 		    avatar_url = $4,
-		    role = $5,
-		    credit = $6,
+		    gender = $5,
+		    dob = $6,
+		    phone = $7,
+		    address = $8,
+		    role = $9,
+		    credit = $10,
 		    updated_at = NOW()
-		WHERE id = $7
+		WHERE id = $11
 	`
 	_, err := r.db.ExecContext(
 		ctx,
@@ -150,6 +203,10 @@ func (r *userRepository) Update(ctx context.Context, u *model.User) error {
 		u.PasswordHash,
 		u.Name,
 		u.AvatarURL,
+		u.Gender,
+		u.DOB,
+		u.Phone,
+		u.Address,
 		u.Role,
 		u.Credit,
 		u.ID,

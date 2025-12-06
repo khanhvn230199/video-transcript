@@ -30,13 +30,15 @@ func NewApp(db *sql.DB) *App {
 	taskSvc := service.NewTaskService(taskRepo)
 
 	// init handlers
-	userHandler := handler.NewUserHandler(userSvc)
+	userHandler := handler.NewUserHandler(userSvc, videoSvc)
 	authHandler := handler.NewAuthHandler(userSvc)
 	uploadHandler := handler.NewUploadHandler(videoSvc)
 	deepgramHandler := handler.NewDeepgramHandler(videoSvc, taskSvc)
 	taskHandler := handler.NewTaskHandler(taskSvc)
 
 	r := gin.Default()
+
+	router := r.Group("/api")
 
 	// Global middleware
 	r.Use(middleware.CORSMiddleware())
@@ -49,12 +51,12 @@ func NewApp(db *sql.DB) *App {
 	})
 
 	// Auth routes (public)
-	authHandler.RegisterRoutes(r)
+	authHandler.RegisterRoutes(router)
 
 	// Upload routes (public)
-	uploadHandler.RegisterRoutes(r)
+	uploadHandler.RegisterRoutes(router, middleware.JWTAuth())
 
-	userHandler.RegisterRoutes(r)
+	userHandler.RegisterRoutes(router, middleware.JWTAuth())
 
 	deepgramHandler.RegisterRoutes(r)
 	taskHandler.RegisterRoutes(r)

@@ -12,3 +12,15 @@ type Video struct {
 	CreatedAt   time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
 }
+
+type ListVideoByUserIDResponse struct {
+	Page       int      `json:"page"`        // Trang hiện tại
+	PageSize   int      `json:"page_size"`   // Số rows mỗi trang
+	Total      int      `json:"total"`       // Tổng số records
+	TotalPages int      `json:"total_pages"` // Tổng số trang
+	Videos     []*Video `json:"videos"`
+}
+
+type UpdateDescriptionVideoRequest struct {
+	Description *string `json:"description"`
+}
