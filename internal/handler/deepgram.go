@@ -107,7 +107,8 @@ func (h *DeepgramHandler) DeepgramSTT(c *gin.Context) {
 	userID := currentUser.ID
 	ctx := context.Background()
 	var in struct {
-		FileURL string `json:"file_url"`
+		FileURL  string `json:"file_url"`
+		Language string `json:"language"`
 	}
 	if err := c.ShouldBindJSON(&in); err != nil {
 		zap.S().Errorw("should bind json failed", "error", err)
@@ -129,7 +130,7 @@ func (h *DeepgramHandler) DeepgramSTT(c *gin.Context) {
 	}
 
 	go func() {
-		res, err := helper.DeepgramSTTFromBytes(ctx, in.FileURL, "audio/mpeg")
+		res, err := helper.DeepgramSTTFromBytes(ctx, in.FileURL, "audio/mpeg", in.Language)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			errorMessage := err.Error()
@@ -162,19 +163,70 @@ func (h *DeepgramHandler) DeepgramSTT(c *gin.Context) {
 				return
 			}
 		}
+
+		// Log Deepgram response structure for debugging
+		if res != nil && res.Results != nil {
+			utterancesCount := 0
+			if res.Results.Utterances != nil {
+				utterancesCount = len(res.Results.Utterances)
+			}
+			channelsCount := 0
+			if res.Results.Channels != nil {
+				channelsCount = len(res.Results.Channels)
+			}
+			zap.S().Infow("Deepgram response received",
+				"task_id", task.ID,
+				"utterances_count", utterancesCount,
+				"channels_count", channelsCount,
+			)
+		}
+
 		simpleTranscript, err := model.ConvertDeepgramToSimple(res)
 		if err != nil {
-			zap.S().Errorw("convert deepgram to simple transcript failed", "error", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			zap.S().Errorw("convert deepgram to simple transcript failed",
+				"error", err,
+				"task_id", task.ID,
+				"file_url", in.FileURL,
+			)
+			errorMessage := err.Error()
+			if updateErr := h.taskSvc.UpdateStatus(ctx, task.ID, model.TaskStatusFailed, nil, nil, &errorMessage); updateErr != nil {
+				zap.S().Errorw("update task status failed", "id", task.ID, "error", updateErr)
+			}
 			return
 		}
-		transcriptJSON, err := json.Marshal(simpleTranscript)
-		if err != nil {
-			zap.S().Errorw("marshal simple transcript failed", "error", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
+
+		// Check if transcript is empty (no data available)
+		hasTranscript := simpleTranscript.TranscriptText != "" || len(simpleTranscript.Words) > 0 || len(simpleTranscript.Utterances) > 0
+
+		if !hasTranscript {
+			zap.S().Warnw("No transcript data available from Deepgram, marking task as completed with null transcript",
+				"task_id", task.ID,
+				"file_url", in.FileURL,
+			)
 		}
-		err = h.taskSvc.UpdateTranscript(ctx, task.ID, model.TaskStatusCompleted, &simpleTranscript.TranscriptText, transcriptJSON)
+
+		// Marshal transcript (will be empty/null if no data)
+		var transcriptText *string
+		if simpleTranscript.TranscriptText != "" {
+			transcriptText = &simpleTranscript.TranscriptText
+		}
+
+		var transcriptJSON json.RawMessage
+		if hasTranscript {
+			jsonBytes, err := json.Marshal(simpleTranscript)
+			if err != nil {
+				zap.S().Errorw("marshal simple transcript failed", "error", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			transcriptJSON = jsonBytes
+		} else {
+			// Set to null JSON if no transcript data
+			transcriptJSON = nil
+		}
+
+		// Update task as completed (even if transcript is null/empty)
+		err = h.taskSvc.UpdateTranscript(ctx, task.ID, model.TaskStatusCompleted, transcriptText, transcriptJSON)
 		if err != nil {
 			zap.S().Errorw("update task transcript failed", "id", task.ID, "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

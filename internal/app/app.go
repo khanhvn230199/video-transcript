@@ -38,6 +38,10 @@ func NewApp(db *sql.DB) *App {
 
 	r := gin.Default()
 
+	// Increase max multipart form memory (default is 32MB)
+	// This allows larger file uploads
+	r.MaxMultipartMemory = 100 << 20 // 100 MB
+
 	router := r.Group("/api")
 
 	// Global middleware

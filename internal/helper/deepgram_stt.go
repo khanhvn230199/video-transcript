@@ -11,14 +11,18 @@ import (
 	"go.uber.org/zap"
 )
 
-func DeepgramSTTFromBytes(ctx context.Context, file_url string, contentType string) (*interfacesv1.PreRecordedResponse, error) {
+func DeepgramSTTFromBytes(ctx context.Context, file_url string, contentType string, language string) (*interfacesv1.PreRecordedResponse, error) {
+	if language == "" {
+		language = "en-US"
+	}
+
 	// 1. Init client Listen API
 	options := &interfaces.PreRecordedTranscriptionOptions{
 		Model:      "nova-3",
 		Keyterm:    []string{"deepgram"},
 		Punctuate:  true,
 		Diarize:    true,
-		Language:   "en-US",
+		Language:   language,
 		Utterances: true,
 		Redact:     []string{"pci", "ssn"},
 	}

@@ -100,39 +100,89 @@ type SimpleTranscript struct {
 
 func ConvertDeepgramToSimple(resp *interfacesv1.PreRecordedResponse) (*SimpleTranscript, error) {
 	out := &SimpleTranscript{}
-	if resp.Results == nil {
-		return nil, errors.New("results is nil")
+	if resp == nil || resp.Results == nil {
+		// Return empty transcript instead of error - allows task to be marked as completed
+		return out, nil
 	}
 
-	if len(resp.Results.Utterances) == 0 {
-		return nil, errors.New("utterances is nil")
-	}
-
+	// Get transcript text from channels if available
 	if len(resp.Results.Channels) > 0 {
 		if len(resp.Results.Channels[0].Alternatives) > 0 {
 			out.TranscriptText = resp.Results.Channels[0].Alternatives[0].Transcript
 		}
 	}
-	// Build words (flatten all utterances)
-	for _, utt := range resp.Results.Utterances {
-		for _, w := range utt.Words {
-			out.Words = append(out.Words, SimpleWord{
-				Word:  w.PunctuatedWord, // dùng chữ có punctuation
-				Start: w.Start,
-				End:   w.End,
+
+	// If utterances are available, use them (preferred method)
+	if len(resp.Results.Utterances) > 0 {
+		// Build words (flatten all utterances)
+		for _, utt := range resp.Results.Utterances {
+			for _, w := range utt.Words {
+				out.Words = append(out.Words, SimpleWord{
+					Word:  w.PunctuatedWord, // dùng chữ có punctuation
+					Start: w.Start,
+					End:   w.End,
+				})
+			}
+		}
+
+		// Build utterances
+		for _, utt := range resp.Results.Utterances {
+			out.Utterances = append(out.Utterances, SimpleUtterance{
+				Start:      utt.Start,
+				End:        utt.End,
+				Transcript: utt.Transcript,
 			})
+		}
+		return out, nil
+	}
+
+	// Fallback: If no utterances, use channels/alternatives
+	if len(resp.Results.Channels) > 0 {
+		for _, channel := range resp.Results.Channels {
+			for _, alt := range channel.Alternatives {
+				// Use transcript text if not already set
+				if out.TranscriptText == "" {
+					out.TranscriptText = alt.Transcript
+				}
+
+				// Build words from alternatives
+				for _, w := range alt.Words {
+					word := w.PunctuatedWord
+					if word == "" {
+						word = w.Word
+					}
+					out.Words = append(out.Words, SimpleWord{
+						Word:  word,
+						Start: w.Start,
+						End:   w.End,
+					})
+				}
+
+				// Create a single utterance from the alternative
+				if alt.Transcript != "" {
+					var start, end float64
+					if len(alt.Words) > 0 {
+						start = alt.Words[0].Start
+						end = alt.Words[len(alt.Words)-1].End
+					}
+					out.Utterances = append(out.Utterances, SimpleUtterance{
+						Start:      start,
+						End:        end,
+						Transcript: alt.Transcript,
+					})
+				}
+			}
+		}
+
+		// If we have transcript text or words, return success
+		if out.TranscriptText != "" || len(out.Words) > 0 {
+			return out, nil
 		}
 	}
 
-	// Build utterances
-	for _, utt := range resp.Results.Utterances {
-		out.Utterances = append(out.Utterances, SimpleUtterance{
-			Start:      utt.Start,
-			End:        utt.End,
-			Transcript: utt.Transcript,
-		})
-	}
-
+	// If we reach here, there's no usable data
+	// Return empty transcript instead of error - task will be marked as completed but with null transcript
+	// This allows client to show success status even when no transcript is available
 	return out, nil
 }
 

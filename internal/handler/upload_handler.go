@@ -5,9 +5,11 @@ import (
 	"net/http"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
 	"video-transcript/internal/middleware"
 	"video-transcript/internal/model"
@@ -40,14 +42,61 @@ func (h *UploadHandler) uploadFile(c *gin.Context) {
 		return
 	}
 
+	// Check Content-Type
+	contentType := c.GetHeader("Content-Type")
+	if contentType == "" || !strings.HasPrefix(contentType, "multipart/form-data") {
+		zap.S().Errorw("Content-Type must be multipart/form-data",
+			"content_type", contentType,
+		)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":    "Content-Type must be multipart/form-data",
+			"received": contentType,
+		})
+		return
+	}
+
 	file, err := c.FormFile("file")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing file"})
+		zap.S().Errorw("failed to get file from form",
+			"error", err,
+			"content_type", contentType,
+			"content_length", c.GetHeader("Content-Length"),
+		)
+
+		// Provide more specific error message for common issues
+		errorMsg := "failed to get file from form"
+		if err.Error() == "unexpected EOF" {
+			errorMsg = "file upload incomplete or corrupted. Please check: 1) File size is within limit (100MB), 2) Connection is stable, 3) File is not corrupted"
+		}
+
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   errorMsg,
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Validate file size (100MB limit)
+	const maxFileSize = 100 << 20 // 100 MB
+	if file.Size > maxFileSize {
+		zap.S().Errorw("file too large",
+			"file_size", file.Size,
+			"max_size", maxFileSize,
+			"filename", file.Filename,
+		)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":        "file too large",
+			"max_size_mb":  100,
+			"file_size_mb": file.Size / (1 << 20),
+		})
 		return
 	}
 
 	src, err := file.Open()
 	if err != nil {
+		zap.S().Errorw("could not open uploaded file",
+			"error", err,
+		)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not open uploaded file"})
 		return
 	}
@@ -58,6 +107,9 @@ func (h *UploadHandler) uploadFile(c *gin.Context) {
 
 	url, err := uploads.UploadToR2(c.Request.Context(), key, src, file.Size, file.Header.Get("Content-Type"))
 	if err != nil {
+		zap.S().Errorw("upload to R2 failed",
+			"error", err,
+		)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -76,6 +128,9 @@ func (h *UploadHandler) uploadFile(c *gin.Context) {
 	}
 
 	if err := h.videoSvc.Create(c.Request.Context(), video); err != nil {
+		zap.S().Errorw("could not save video metadata",
+			"error", err,
+		)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not save video metadata"})
 		return
 	}
@@ -112,6 +167,9 @@ func (h *UploadHandler) updateDescriptionVideo(c *gin.Context) {
 	}
 
 	if err := h.videoSvc.UpdateDescription(c.Request.Context(), id, in.Description); err != nil {
+		zap.S().Errorw("could not update video description",
+			"error", err,
+		)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not update video description"})
 		return
 	}
