@@ -18,13 +18,14 @@ func DeepgramSTTFromBytes(ctx context.Context, file_url string, contentType stri
 
 	// 1. Init client Listen API
 	options := &interfaces.PreRecordedTranscriptionOptions{
-		Model:      "nova-3",
-		Keyterm:    []string{"deepgram"},
-		Punctuate:  true,
-		Diarize:    true,
-		Language:   language,
-		Utterances: true,
-		Redact:     []string{"pci", "ssn"},
+		Model:          "nova-3",
+		Keyterm:        []string{"deepgram"},
+		Punctuate:      true,
+		Diarize:        true,
+		Language:       language,
+		Utterances:     true,
+		Redact:         []string{"pci", "ssn"},
+		DetectLanguage: true,
 	}
 
 	c := client.NewRESTWithDefaults()

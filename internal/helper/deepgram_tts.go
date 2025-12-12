@@ -25,9 +25,7 @@ func DeepgramTTS(ctx context.Context, userID string, text string) (string, error
 		return "", err
 	}
 	options := &interfaces.SpeakOptions{
-		Model:      "aura-2-thalia-en",
-		Encoding:   "linear16",
-		SampleRate: 48000,
+		Model: "aura-2-thalia-en",
 	}
 	log.Println("Deepgram API key", config.SvcCfg.DeepgramAPIKey)
 	c := client.NewRESTWithDefaults()

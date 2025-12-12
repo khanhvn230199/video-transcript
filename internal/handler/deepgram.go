@@ -64,12 +64,10 @@ func (h *DeepgramHandler) DeepgramTTS(c *gin.Context) {
 		url, err := helper.DeepgramTTS(ctx, fmt.Sprintf("%d", userID), in.Text)
 		if err != nil {
 			zap.S().Errorw("deepgram tts failed", "error", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			errorMessage := err.Error()
 			err := h.taskSvc.UpdateStatus(ctx, task.ID, model.TaskStatusFailed, nil, nil, &errorMessage)
 			if err != nil {
 				zap.S().Errorw("update task status failed", "id", task.ID, "error", err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
 			return
@@ -82,13 +80,13 @@ func (h *DeepgramHandler) DeepgramTTS(c *gin.Context) {
 		}
 		if err := h.videoSvc.Create(ctx, uploadVideo); err != nil {
 			zap.S().Errorw("create video failed", "user_id", userID, "file_url", url, "error", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			errorMessage := err.Error()
+			_ = h.taskSvc.UpdateStatus(ctx, task.ID, model.TaskStatusFailed, nil, nil, &errorMessage)
 			return
 		}
 		err = h.taskSvc.UpdateStatus(ctx, task.ID, model.TaskStatusCompleted, &url, nil, nil)
 		if err != nil {
 			zap.S().Errorw("update task status failed", "id", task.ID, "error", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 	}()
